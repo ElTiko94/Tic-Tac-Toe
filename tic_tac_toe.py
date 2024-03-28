@@ -1,58 +1,106 @@
+from q_learning_agent import QLearningAgent
+import pickle
+
 def print_board(board):
-    for row in board:
-        print(" " + " | ".join(row) + " |")
-        print("-" * 12)
+    for i in range(0, 9, 3):
+        print(" | ".join(board[i:i+3]))
+        if i < 6:
+            print("-" * 9)
 
 def check_winner(board, player):
-    # Check rows
-    for row in board:
-        if all(cell == player for cell in row):
+    # Check rows, columns, and diagonals
+    winning_conditions = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]]
+    for condition in winning_conditions:
+        if all(board[i] == player for i in condition):
             return True
-    # Check columns
-    for col in range(3):
-        if all(board[row][col] == player for row in range(3)):
-            return True
-    # Check diagonals
-    if all(board[i][i] == player for i in range(3)) or all(board[i][2 - i] == player for i in range(3)):
-        return True
     return False
 
-def is_board_full(board):
-    for row in board:
-        for cell in row:
-            if cell == ' ':
-                return False
-    return True
+def get_reward(board, player):
+    if check_winner(board, player):
+        return 1
+    else:
+        return 0
+
+def get_state(board):
+    return tuple(board)
 
 def main():
-    board = [[' ' for _ in range(3)] for _ in range(3)]
-    current_player = 'X'
+
+    try:
+        with open("object.pkl", "rb") as f:
+            agent = pickle.load(f)
+    except FileNotFoundError:
+        agent = QLearningAgent()
+
+    agent2 = QLearningAgent()
+    x_count = 0
+    o_count = 0
 
     print("Welcome to Tic Tac Toe!")
 
+    itteration = 0
+
     while True:
+        board = [' '] * 9
+        current_player = 'X'
         print_board(board)
-        row = int(input(f"Player {current_player}, enter row (0, 1, 2): "))
-        col = int(input(f"Player {current_player}, enter column (0, 1, 2): "))
+        print("")
+        moves = 1
 
-        if board[row][col] != ' ':
-            print("That cell is already taken! Try again.")
-            continue
+        while True:
+            state = get_state(board)
+            if current_player == 'X':
+                action = agent2.choose_action(state, agent2.get_possible_actions(state))
+                
+            else:
+                action = agent.choose_action(state, agent.get_possible_actions(state))
 
-        board[row][col] = current_player
+            row = action // 3
+            col = action % 3
+            board[action] = current_player
 
-        if check_winner(board, current_player):
             print_board(board)
-            print(f"Player {current_player} wins!")
+            print("")
+
+            reward = get_reward(board, current_player)
+            if reward != 0:
+                agent.update_q_value(agent.last_state, agent.last_action, reward, get_state(board))
+                if reward == 1:
+                    print("Player X wins!" if current_player == 'X' else "Player O wins!")
+                    if current_player == 'X':
+                        x_count +=1
+                    else:
+                        o_count +=1
+                break
+            elif  moves == 9:
+                if reward == 1:
+                    print("Player X wins!" if current_player == 'X' else "Player O wins!")
+                    if current_player == 'X':
+                        x_count +=1
+                    else:
+                        o_count +=1
+                else :
+                    print("It's a draw!")
+                break
+
+            moves += 1
+            agent.update_q_value(agent.last_state, agent.last_action, reward, get_state(board))
+
+            current_player = 'X' if current_player == 'O' else 'O'
+
+        play_again = "yes" #input("Do you want to play again? (yes/no): ")
+        if play_again.lower() != 'yes':
+            with open("object.pkl", "wb") as file:
+                pickle.dump(agent, file)
+            break
+        itteration += 1
+        if itteration > 1000:
+            with open("object.pkl", "wb") as file:
+                pickle.dump(agent, file)
             break
 
-        if is_board_full(board):
-            print_board(board)
-            print("It's a draw!")
-            break
-
-        # Switch players
-        current_player = 'O' if current_player == 'X' else 'X'
+    print (f"X wins {x_count} times")
+    print (f"O wins {o_count} times")
 
 if __name__ == "__main__":
     main()
