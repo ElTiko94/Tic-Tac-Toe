@@ -13,7 +13,10 @@ class QLearningAgent:
         return self.q_values.get((state, action), 0.0)
 
     def update_q_value(self, state, action, reward, next_state):
-        best_next_action = max(self.get_possible_actions(next_state), key=lambda a: self.get_q_value(next_state, a))
+        try :
+            best_next_action = max(self.get_possible_actions(next_state), key=lambda a: self.get_q_value(next_state, a))
+        except ValueError :
+            best_next_action = None
         td_target = reward + self.gamma * self.get_q_value(next_state, best_next_action)
         td_delta = td_target - self.get_q_value(state, action)
         self.q_values[(state, action)] = self.get_q_value(state, action) + self.alpha * td_delta
